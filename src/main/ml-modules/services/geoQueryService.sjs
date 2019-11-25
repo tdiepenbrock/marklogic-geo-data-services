@@ -990,7 +990,8 @@ function getObjects(req, exportPlan=false) {
       columnDefs = generateFieldDescriptors(layerModel, schema);
 
 
-      let viewPlan = op.fromView(schema, view, "", "DocId");
+      const fragmentIdColumn = primaryDataSource.fragmentIdColumn ? primaryDataSource.fragmentIdColumn : "DocId";
+      let viewPlan = op.fromView(schema, view, null, fragmentIdColumn);
       xdmp.trace("KOOP-DEBUG", "Pipeline[source === view] Plan:");
       xdmp.trace("KOOP-DEBUG", viewPlan);
       xdmp.trace("KOOP-DEBUG", "Pipeline[source === view] boundingQuery:");
@@ -1138,7 +1139,8 @@ function addJoinToPipeline(dataSource, viewPlan, pipeline) {
   xdmp.trace("KOOP-DEBUG", "Starting addJoinToPipeline");
   const dataSourcePlan = getPlanForDataSource(dataSource);
   const joinOn = dataSource.joinOn;
-  pipeline = pipeline.joinInner(
+  let joinFunc = dataSource.joinFunction ? dataSource.joinFunction : "joinInner";
+  pipeline = pipeline[joinFunc](
     dataSourcePlan, op.on(op.col(joinOn.left), op.col(joinOn.right))
   )
   return pipeline;
@@ -1155,7 +1157,8 @@ function getPlanForDataSource(dataSource) {
     }
     return plan;
   } else if (dataSource.source === "view") {
-    return op.fromView(dataSource.schema, dataSource.view, "")
+    let fragmentIdColumn = dataSource.fragmentIdColumn ? dataSource.fragmentIdColumn : "DocId";
+    return op.fromView(dataSource.schema, dataSource.view, null, fragmentIdColumn)
   } else {
     returnErrToClient(500, 'Error handling request', "dataSource objects must specify a valid source ('view' or 'sparql')");
   }
@@ -1221,7 +1224,8 @@ function aggregate(req) {
       const schema = primaryDataSource.schema;
       const view = primaryDataSource.view;
 
-      let viewPlan = op.fromView(schema, view, "", "DocId");
+      const fragmentIdColumn = primaryDataSource.fragmentIdColumn ? primaryDataSource.fragmentIdColumn : "DocId";
+      let viewPlan = op.fromView(schema, view, null, fragmentIdColumn);
       pipeline = initializePipeline(viewPlan, boundingQuery, layerModel)
     } else if (primaryDataSource.source === "sparql") {
       let viewPlan = getPlanForDataSource(primaryDataSource);
